@@ -1,0 +1,293 @@
+---
+title: "Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(gridExtra)
+```
+
+### Load data
+
+Make sure your data and R Markdown files are in the same directory. When loaded
+your data file will be called `movies`. Delete this note when before you submit 
+your work. 
+
+```{r load-data, echo=FALSE}
+#load("movies.Rdata")
+load("~/Documents/Stat_Duke_Univ/w3_Linear_Regression/projectw3/movies.Rdata")
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+```{r Exploring Data, warning =FALSE}
+# Relationship: critics_score (Rotten Tomatoes) vs. imdb_rating (IMDB)
+summary(movies$critics_score)
+summary(movies$audience_score)
+summary(movies$imdb_rating)
+summary(movies$imdb_num_votes)
+summary(movies$imdb_num_votes)
+```
+
+#### Histograms
+
+Only the IMDB rating looks like a normal ditribution.
+On the other hand Rotten Tomatoes critics and user gives more often high scores than lower. The distributions does not look normal at all 
+
+```{r Plot1, echo=FALSE}
+require(gridExtra)
+# Histogram critics_score 
+p1<-ggplot(movies,aes(critics_score))+
+  geom_histogram(binwidth = 10,fill="lightblue", colour="black")+
+  theme(axis.text=element_text(size=8),
+  axis.title=element_text(size=8,face="bold")) +    # angle = 0
+  theme(legend.text = element_text(size = 8, colour = "darkgrey", angle = 0)) +
+  theme(axis.text = element_text(colour = "black", angle=0)) + 
+  xlim(0,100)+
+  scale_fill_brewer(palette="Paired" )
+# Histogram audience_score
+p2<-ggplot(movies,aes(audience_score))+
+  geom_histogram(binwidth = 10,fill="lightblue", colour="black")+
+  theme(axis.text=element_text(size=8),
+  axis.title=element_text(size=8,face="bold")) +    # angle = 0
+  theme(legend.text = element_text(size = 8, colour = "darkgrey", angle = 0)) +
+  theme(axis.text = element_text(colour = "black", angle=0)) + 
+  xlim(0,100)+
+  scale_fill_brewer(palette="Paired" )
+# Histogram imdb_rating
+p3<-ggplot(movies,aes(imdb_rating))+
+  geom_histogram(binwidth = 0.5,fill="lightblue", colour="black")+
+  theme(axis.text=element_text(size=8),
+  axis.title=element_text(size=8,face="bold")) +    # angle = 0
+  theme(legend.text = element_text(size = 8, colour = "darkgrey", angle = 0)) +
+  theme(axis.text = element_text(colour = "black", angle=0)) +  
+  xlim(0,10)+
+  scale_fill_brewer(palette="Paired" )
+
+# Histogram imdb_num_votes
+movies<-movies%>%mutate(LnNumVotes=log(imdb_num_votes))
+p4<-ggplot(movies,aes(LnNumVotes))+
+  geom_histogram(binwidth = 1.5,fill="lightblue", colour="black")+
+  theme(axis.text=element_text(size=8),
+  axis.title=element_text(size=8,face="bold")) +    # angle = 0
+  theme(legend.text = element_text(size = 8, colour = "darkgrey", angle = 0)) +
+  theme(axis.text = element_text(colour = "black", angle=0)) +  scale_fill_brewer(palette="Paired" ) + xlim(0,16)
+
+grid.arrange(p1, p2, p3, p4, ncol=2)
+```
+
+```{r IMDB Tomatoes number of votes linear relationship, warning =FALSE}
+p2<-ggplot(data = movies, aes(x =imdb_rating, y = audience_score)) +
+geom_jitter()+geom_smooth(method = "lm", se = FALSE) + ylim(-5,105) + xlim(-0.5,9.5)
+# scatter plot critics_score (Tomatoes) vs. imdb_rating 
+p1<-ggplot(data = movies, aes(x =imdb_rating, y = critics_score)) +
+geom_jitter()+geom_smooth(method = "lm", se = FALSE) + ylim(-5,105) + xlim(1,9.5)
+# scatter plot imdb_num_votes ~ imdb_rating
+p3<-ggplot(data = movies, aes(x= log(imdb_num_votes), y= imdb_rating)) +
+geom_jitter()+geom_smooth(method = "lm", se = FALSE)  + xlim(4.5,15) + ylim(-0.5,10.5)
+#Scatter plot imdb_num_votes~critics_score(Tomatoes)
+p4<-ggplot(data = movies, aes(x= log(imdb_num_votes), y= audience_score)) +
+geom_jitter()+geom_smooth(method = "lm", se = FALSE)  + xlim(4.5,15) + ylim(-5,105)
+grid.arrange(p2, p1, p3,p4, ncol=2)
+
+```
+
+```{r slopes}
+m<-lm(audience_score~imdb_rating, data=movies) ; m$coefficients[2]
+sm.m<-summary(m); sm.m$coefficients[2,]
+m<-lm(critics_score~imdb_rating, data=movies) ; m$coefficients[2]
+sm.m<-summary(m); sm.m$coefficients[2,]
+m<-lm(imdb_rating~log(imdb_num_votes), data=movies) ; m$coefficients[2]
+sm.m<-summary(m); sm.m$coefficients[2,]
+```
+
+
+In the context of the relationship between the critics' score (Rotten Tomatoes) and the IMDB rating the slope tell us that:
+
+**For each additional point on rating scale of the IBMD, the model predicts 16 more points of the Rotten Tomatoes audience score, on average.**
+
+**For each additional point on rating scale of the IBMD, the model predicts 20 more points of the Rotten Tomatoes critics score, on average.**
+
+**verytime that the number of voters is multiplied by 10, the model predicts 0.1 more points of the IMDB rating, on average.**
+
+$$scale _x:0-10$$
+$$scale_y=0-100$$
+This means that with our model when IMDB rating is 3.6 points the model predicts 0 points for Rotten Tomatoes and for 8.6 IMDB rating points the model gives the maximum of possible critics score (100). The IMDB rating's interval is narrower.
+
+The Rotten Tomatoes critics seems more generous than the IMDB critics
+
+```{r linear}
+m1<-lm(formula = critics_score ~ imdb_rating,data=movies)
+Sm.m1=summary(m1)
+Sm.m1      # Sm.m1$coefficients
+
+m2<-lm(formula = audience_score ~ imdb_rating,data=movies)
+Sm.m2=summary(m2)
+Sm.m2 
+
+m3<- lm(formula = imdb_num_votes ~ imdb_rating,data=movies)
+Sm.m3=summary(m3)
+Sm.m3   
+```
+
+
+Films with more number of votes (IMDB)
+```{r Most voted}
+x<-movies[movies$imdb_num_votes >= 600000,]
+z=names(movies)
+x<-movies[movies$imdb_rating > 4 & movies$top200_box == "yes",]
+x<-movies[movies$top200_box == "yes",]
+x<-x[order(-x$imdb_rating),]
+
+my_var=names(movies)
+my_var<-my_var[c(1,13,14,16,18,15,17,19,20,23,24)]
+# Best movie Winner & Nomination
+x<-movies[movies$best_pic_win == "yes" & movies$best_pic_nom == "yes",]
+x<-x[order(-x$imdb_rating),]
+xx=x[my_var]
+xx[,c(1:2,4:5,11)]
+summary(xx)
+# Top 200 movies Top200_Box
+x<-movies[movies$top200_box == "yes",]
+x<-x[order(-x$imdb_rating),]
+xx=x[my_var]
+xx[,c(1:2,4,6,8)]
+summary(xx)
+# Highest imdb rating & Certified fresh
+x<-movies[movies$imdb_rating >= 8 & movies$critics_rating == "Certified Fresh",]
+x<-x[order(-x$imdb_rating),]
+xx=x[my_var]
+xx[,c(1:2,4,6,8,11)]
+summary(xx)
+
+x<-movies[movies$best_pic_nom == "yes" & movies$dire == "Certified Fresh",]
+
+# Oscar nomination Best Pictutre
+x<-movies %>% filter(best_pic_nom == "yes" )
+
+x<-x[order(-x$imdb_rating),]
+xx=x[my_var]
+xx[,c(1:2,4,6,8,11)]
+ # Director
+a<-data.frame(table(subset(x,select=c(title,director,actor1))))
+a[a$Freq >=1,]
+#Actor frequency
+a<-data.frame(table(subset(x,select=c(actor1))))
+a[a$Freq >=2,]
+a<-data.frame(table(subset(x,select=c(actor2))))
+a[a$Freq >=2,]
+
+
+# Table actors
+table(subset(movies,select=c(actor1)))
+my_var=c(movies$title,movies$imdb_rating,movies$imdb_rating,movies$critics_score,movies$audience_score,movies$critics_rating,movies$audience_rating)
+#x[,my_var]
+my_var
+
+a<-data.frame(table(subset(movies,select=c(actor1))))
+a[a$Freq > 3,]
+
+a<-data.frame(table(subset(movies,select=c(actor2))))
+a[a$Freq > 2,]
+
+a<-data.frame(table(subset(movies,select=c(director,best_pic_nom))))
+
+a[a$Freq >= 2,]
+```
+
+* * *
+
+## Part 2: Research question
+
+### 1.  What attributes make a movie popular 
+### 2.  She is also interested in learning something new about movies
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 4: Modeling
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 5: Prediction
+
+NOTE: Insert code chunks as needed by clicking on the "Insert a new code chunk" 
+button above. Make sure that your code is visible in the project you submit. 
+Delete this note when before you submit your work.
+
+* * *
+
+## Part 6: Conclusion
+
+```{r Normal distribution}
+mu=mean(movies$imdb_rating); sig=sd(movies$imdb_rating)
+nIMDB=length(movies$imdb_rating)
+x   <- seq(1,10,length=nIMDB)
+normalIMDB  <- dnorm(x,mean=mu, sd=sig)
+plot(x,normalIMDB, type="l", lwd=1, xlab="IMDB Rating", ylab="",
+  main="Normal Distribution")
+d <- density(movies$imdb_rating) # returns the density data 
+plot(d) # plots the results
+p1<-ggplot(movies, aes(imdb_rating)) +
+  geom_density(colour="blue")
+
+
+normal<-rnorm(651,mean=mu, sd=sig)
+
+# Plot 3 Desities Distribution: IMDB,NORMAL (centered at IMDB mean,same sd), Rotten Tomatoes (Rescaled to 10)  
+set.seed(1234)
+Who<-c(rep("IMDB",651),rep("RottenT-Scale10",651), rep("Normal",651))
+normalIMDB=round(rnorm(651,mean=mu, sd=sig),1)
+rating<-data.frame(c(movies$imdb_rating,movies$critics_score/10, normalIMDB))
+critics=data.frame(cbind(Who,rating))
+names(critics)=c("who","rating")
+rating.mean=c(mean(movies$imdb_rating),mean(movies$critics_score/10), mean(normalIMDB))
+ggplot(critics, aes(x=rating, fill=who)) + geom_density(alpha=.2) +
+    geom_vline(data=critics, aes(xintercept=rating.mean[1]), colour="red",
+               linetype="dashed", size=1) + 
+    geom_vline(data=critics, aes(xintercept=rating.mean[2]), colour="blue",
+               linetype="dashed", size=1) +
+    geom_vline(data=critics, aes(xintercept=rating.mean[3]),  colour="red",
+               linetype="dashed", size=1)
+movies<-data.frame(cbind(movies, normal.IMDB=normalIMDB))
+p1<-ggplot(movies, aes(x=genre, y=imdb_rating, fill=genre)) + geom_boxplot()+ ylim(1,10)
+p2<-ggplot(movies, aes(x=genre, y=critics_score/10, fill=genre)) + geom_boxplot()+ ylim(1,10)
+grid.arrange(p1, p2, ncol=2)
+
+p1<-ggplot(data = movies, aes(x =normal.IMDB, y = imdb_rating, colour=genre)) +
+geom_jitter()+geom_smooth(method = "lm", se = FALSE) + ylim(1,10) + xlim(1,10)
+p1
+rm(p1)
+# There is NO CORRELATIOIN between the IMDB and a normal population centered at IMDB_rating mean and with a standard variation equal to the standard variation of IMDB_rating
+m1<-lm(formula = imdb_rating ~ normalIMDB,data=movies)
+Sm.m1=summary(m1)
+Sm.m1
+```
+
